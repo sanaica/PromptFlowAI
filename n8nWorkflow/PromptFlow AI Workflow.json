@@ -1,0 +1,1205 @@
+{
+  "name": "PromptFlow AI Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an AI Video Editor Assistant.\nThe user wants to edit a video.\nThe user's request is: \"{{ $('Edit Fields').item.json.body.prompt }}\"\n\n**YOUR GOAL:**\nAnalyze the request and output a **STRICT JSON OBJECT** containing the blueprint for the video process.\n\n**FIELD 1: \"action\" (The Router)**\n- If the user's request includes words like \"subtitle\", \"subtitles\", \"captions\", \"text\", or \"transcribe\", output EXACTLY: \"subtitles\"\n- If the user asks for literally anything else (like adding fire, filters, objects, overlays, stickers, etc.), output EXACTLY: \"vfx\"\n\n**FIELD 2: \"prompt\" (The visual instruction for the AI Generator)**\n- Write a highly descriptive prompt for a Text-to-Video AI. (Leave this blank \"\" if action is \"subtitles\").\n- **CRITICAL RULE:** DO NOT include words about position, size, scaling, or timing (like \"bottom left\", \"small\", \"5 seconds\") in this string. Put those values in the JSON fields below instead.\n- **MANDATORY:** End with \"Isolated on solid pure black background\", \"Static camera\", \"No shadows\".\n\n**FIELD 3: \"width\" & \"height\" (Precision Sizing)**\n- **Integers (e.g., 500):** Use if user specifies pixels (e.g., \"500px wide\").\n- **Floats (e.g., 0.5):** Use if user specifies relative size.\n- **0 (Zero):** Use for \"Auto\" (Preserve Aspect Ratio).\n\n**FIELD 4: \"scale\" (Fallback Size)**\n- Use 1.0 (Full Screen), 0.5 (Medium), or 0.3 (Sticker) if no specific dimensions are given.\n\n**FIELD 5: \"position\" (Placement)**\n- Options: \"center\", \"top-left\", \"top-right\", \"bottom-left\", \"bottom-right\", \"top\", \"bottom\".\n\n**FIELD 6: \"start_time\" & \"end_time\" (Timing)**\n- In seconds. If the user doesn't specify a time, set BOTH to 0.\n\n**JSON OUTPUT FORMAT:**\n{\n  \"action\": \"vfx\",\n  \"prompt\": \"A 3D glossy cute cat sitting and winking, wide shot, Centered in frame...\",\n  \"width\": 0,\n  \"height\": 0.5,\n  \"scale\": 1.0,\n  \"start_time\": 0,\n  \"end_time\": 0,\n  \"position\": \"bottom-right\"\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        2512,
+        -2480
+      ],
+      "id": "50f6bc2f-f803-461c-a7c9-b0bebcde79e4",
+      "name": "Message a model1",
+      "retryOnFail": true,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "tecmMgbZcjwOLfCI",
+          "name": "Google Gemini(PaLM) Api account 8"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $env.USERPROFILE }}/VideoEditorProject/Prompt/prompt.txt",
+        "dataPropertyName": "=data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        3232,
+        -2608
+      ],
+      "id": "70d1d382-019f-4f3a-a8b9-e7e28d7a810c",
+      "name": "Read/Write Files from Disk1"
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "content.parts[0].text",
+        "options": {
+          "fileName": "prompt.txt"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        3088,
+        -2608
+      ],
+      "id": "e644bf5e-a371-4fd5-8ae5-87e0446f2981",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "jsCode": "/*const { exec } = require('child_process');\nconst os = require('os');\nconst path = require('path');\n\n// 1. Universal Paths\nconst userHome = os.homedir(); \nconst projectDir = path.join(userHome, \"VideoEditorProject\");\n// This automatically builds: C:\\Users\\Xavier\\VideoEditorProject\\merge.py\nconst scriptPath = path.join(projectDir, \"merge.py\");\n\n// THE BULLETPROOF FIX:\n// Explicitly point to your new Python 3.13 installation!\nconst pythonPath = \"\\\"C:\\\\Program Files\\\\Python313\\\\python.exe\\\"\"; \n\n// 2. Return a Promise (Async Mode)\nreturn new Promise((resolve, reject) => {\n  \n  // COMMAND: Run Python\n  // We use cwd (Current Working Directory) to ensure relative paths in merge.py work\n  exec(`${pythonPath} \"${scriptPath}\"`, { \n    encoding: 'utf8',\n    cwd: projectDir \n  }, (error, stdout, stderr) => {\n    \n    if (error) {\n      // If Python crashes, show us the log\n      const errorLog = stdout ? stdout.toString() : (stderr ? stderr.toString() : error.message);\n      reject(new Error(`Python Script Failed: ${errorLog}`));\n    } else {\n      // If Success, return the result\n      resolve([\n        {\n          json: {\n            status: \"Video Rendered Successfully\",\n            log: stdout\n          }\n        }\n      ]);\n    }\n\n  });\n});*/\n\nconst { exec } = require('child_process');\nconst os = require('os');\nconst path = require('path');\n\nconst userHome = os.homedir(); \nconst projectDir = path.join(userHome, \"VideoEditorProject\");\nconst scriptPath = path.join(projectDir, \"merge.py\");\nconst pythonPath = \"\\\"C:\\\\Program Files\\\\Python313\\\\python.exe\\\"\"; \n\nreturn new Promise((resolve) => { // Removed 'reject' to keep n8n alive\n  exec(`${pythonPath} \"${scriptPath}\"`, { \n    encoding: 'utf8', \n    cwd: projectDir \n  }, (error, stdout, stderr) => {\n    \n    if (error) {\n      // Instead of throwing an error, we return an error object\n      const errorLog = stdout ? stdout.toString() : (stderr ? stderr.toString() : error.message);\n      \n      resolve([{\n        json: {\n          success: false,\n          status: \"error\",\n          error_details: errorLog,\n          stderr: stderr.toString()\n        }\n      }]);\n    } else {\n      resolve([{\n        json: {\n          success: true,\n          status: \"success\",\n          message: \"Video Rendered Successfully\",\n          log: stdout\n        }\n      }]);\n    }\n  });\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3552,
+        -2608
+      ],
+      "id": "76d68b03-5349-4c15-8af5-51ca35ff59dc",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const { exec } = require('child_process');\nconst os = require('os');\nconst path = require('path');\n\n// 1. Universal Paths (Bypasses Desktop & OneDrive completely!)\nconst userHome = os.homedir(); \nconst projectDir = path.join(userHome, \"VideoEditorProject\");\n// This automatically builds: C:\\Users\\Xavier\\VideoEditorProject\\generate.py\nconst scriptPath = path.join(projectDir, \"generate.py\");\n\n// THE BULLETPROOF FIX:\n// We must use your Python 3.13 path to match your installed libraries!\nconst pythonPath = \"\\\"C:\\\\Program Files\\\\Python313\\\\python.exe\\\"\";\n\n// 2. Return a Promise (Async Mode)\n// This keeps n8n \"alive\" while the AI generates the video\nreturn new Promise((resolve, reject) => {\n  \n  // COMMAND: Run Python\n  // We use cwd (Current Working Directory) to ensure relative paths in generate.py work\n  exec(`${pythonPath} \"${scriptPath}\"`, { \n    encoding: 'utf8',\n    cwd: projectDir \n  }, (error, stdout, stderr) => {\n    \n    if (error) {\n      // If Python crashes (e.g. API error), show us the log\n      const errorLog = stdout ? stdout.toString() : (stderr ? stderr.toString() : error.message);\n      reject(new Error(`AI Generation Failed: ${errorLog}`));\n    } else {\n      // If Success, return the log\n      resolve([\n        {\n          json: {\n            status: \"AI Video Generated Successfully\",\n            log: stdout\n          }\n        }\n      ]);\n    }\n\n  });\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3392,
+        -2608
+      ],
+      "id": "4d228363-c8fd-40db-b3f7-c1e10030de5f",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "content": "commands:\nset N8N_RESTRICT_FILE_ACCESS_TO=\"\"\nset N8N_RUNNERS_TASK_TIMEOUT = 3600\nset N8N_BLOCK_ENV_ACCESS_IN_NODE=false\n\nExecute from Webhook1\n",
+        "height": 144,
+        "width": 400
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1808,
+        -2464
+      ],
+      "typeVersion": 1,
+      "id": "bf851c0c-fe39-4453-97bd-7ba18f409010",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Edit Fields').item.json.body.mode }}",
+                    "rightValue": "Add AI VFX",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "99a5bbb4-893a-4ce3-b04c-379426073397"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d5884f50-2078-468d-9ff3-f2bd949246a4",
+                    "leftValue": "={{ $('Edit Fields').item.json.body.mode }}",
+                    "rightValue": "General Effects (AI Assistant)",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2320,
+        -2368
+      ],
+      "id": "583c4891-caca-485e-9c34-3bd537f864c6",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "content.parts[0].text",
+        "options": {
+          "fileName": "information.txt"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2688,
+        -1952
+      ],
+      "id": "fc264729-7330-4d6d-951b-9df0d4e1ba3a",
+      "name": "Convert to File1"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $env.USERPROFILE }}/Video/information.txt",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        2848,
+        -1952
+      ],
+      "id": "c16614f4-50ff-490d-8c2e-402245ae435a",
+      "name": "Read/Write Files from Disk2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const { exec } = require('child_process');\nconst os = require('os');\nconst path = require('path');\n\n// 1. Universal Paths (Bypasses Desktop & OneDrive completely!)\nconst userHome = os.homedir(); \n// This automatically builds: C:\\Users\\TheirName\\Video\\standard_edits.py\nconst scriptPath = path.join(userHome, \"Video\", \"standard_edits.py\");\n\n// Automatically use the system's globally installed Python!\nconst pythonPath = \"\\\"C:\\\\Users\\\\Xavier\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python310\\\\python.exe\\\"\";\n\n// 2. Return a Promise to keep n8n waiting until Python finishes\nreturn new Promise((resolve, reject) => {\n  \n  // COMMAND: Run Python (Added quotes around scriptPath so spaces in usernames don't crash it!)\n  exec(`${pythonPath} \"${scriptPath}\"`, { encoding: 'utf8' }, (error, stdout, stderr) => {\n    \n    if (error) {\n      // If Python crashes, show the error log\n      const errorLog = stdout ? stdout.toString() : (stderr ? stderr.toString() : error.message);\n       resolve([{\n        json: {\n          success: false,\n          status: \"error\",\n          error_message: \"Auto Subtitles Failed\",\n          details: errorLog\n        }\n      }]);\n    } else {\n      resolve([{\n        json: {\n          success: true,\n          status: \"success\",\n          message: \"Auto Subtitles Generated Successfully!\",\n          log: stdout\n        }\n      }]);\n    }\n  });\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3008,
+        -1952
+      ],
+      "id": "5eb313e4-8aa4-4458-a466-2f75550bc411",
+      "name": "Code in JavaScript4",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a video editing AI. Convert the user's request into a strict JSON workflow.\nONLY output the JSON. No explanations. No markdown formatting.\n\nRules:\n1. The initial input file is ALWAYS \"raw.mp4\".\n2. Each step must output a temporary file (e.g., \"temp1.mp4\").\n3. The final step's output MUST be named \"final_render.mp4\".\n4. TIME FORMAT: All times (start, end, duration) MUST be converted into pure seconds (integers).\n5. EFFECTS: When using 'apply_effects', dynamically add any required properties for that specific effect inside its dictionary (e.g., add \"duration\" for fade_in/fade_out, \"angle\" for rotate, \"newsize\" for resize).\n\nAVAILABLE FUNCTIONS (YOU MUST USE THIS EXACT FORMAT):\n- {\"function\": \"trim\", \"params\": {\"input\": \"...\", \"start\": 0, \"end\": 10, \"output\": \"...\"}} (Keeps ONLY middle section)\n- {\"function\": \"cut_video\", \"params\": {\"input\": \"...\", \"start\": 0, \"end\": 5, \"output\": \"...\"}} (Removes middle section)\n- {\"function\": \"change_speed\", \"params\": {\"input\": \"...\", \"speed\": 2.0, \"output\": \"...\"}} (Speeds up/slows down)\n- {\"function\": \"no_audio\", \"params\": {\"input\": \"...\", \"output\": \"...\"}} (Mutes video)\n- {\"function\": \"add_audio\", \"params\": {\"input\": \"...\", \"audio\": \"song.mp3\", \"output\": \"...\"}} (Merges local file)\n- {\"function\": \"integrate_music\", \"params\": {\"input\": \"...\", \"prompt\": \"laughter\", \"output\": \"...\"}} (AI music search)\n- {\"function\": \"add_text\", \"params\": {\"input\": \"...\", \"text\": \"Hi\", \"start\": 0, \"duration1\": 5, \"position\": [\"center\", \"bottom\"], \"output\": \"...\"}}\n- {\"function\": \"apply_effects\", \"params\": {\"input\": \"...\", \"effect_list\": [{\"type\": \"bw\"}, {\"type\": \"rotate\", \"angle\": 45}, {\"type\": \"fade_in\", \"duration\": 2}], \"output\": \"...\"}}\n- {\"function\": \"merge_videos\", \"params\": {\"inputs\": [\"raw.mp4\", \"temp1.mp4\"], \"output\": \"...\"}}\n\nUser Prompt: {{ $('Edit Fields').item.json.body.prompt }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        2496,
+        -2352
+      ],
+      "id": "6dcb1841-13af-4efa-a294-e0de436572c4",
+      "name": "Message a model2",
+      "retryOnFail": true,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xIpIo6NJ54B32lBt",
+          "name": "Google Gemini(PaLM) Api account 7"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "vfx",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "7999d415-b159-479a-b908-5d14ec4987b9"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "4472b5d8-1df1-41e6-8076-8c52758fecb2",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "subtitles",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2928,
+        -2480
+      ],
+      "id": "7ec157d8-09fd-4e3f-8252-0de4edbcfea1",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Grab the raw text from the AI output\nlet rawText = $input.first().json.content.parts[0].text;\n\n// 2. Clean off the ```json and ``` markdown formatting\nlet cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();\n\n// 3. Turn it into a readable JSON object to extract the action\nlet aiData = JSON.parse(cleanText);\n\n// 4. Get the original n8n item structure\nlet item = $input.first().json;\n\n// 5. Expose the \"action\" field directly so the Switch Node can see it!\nitem.action = aiData.action;\n\n// 6. Replace the messy AI text with the beautifully cleaned JSON string.\n// Your \"Convert to File\" node will read this perfectly and save a clean prompt.txt!\nitem.content.parts[0].text = JSON.stringify(aiData, null, 2);\n\nreturn [{ json: item }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2784,
+        -2480
+      ],
+      "id": "d0717fd4-a880-4909-a535-85c793925745",
+      "name": "Code in JavaScript5"
+    },
+    {
+      "parameters": {
+        "jsCode": "/*const { exec } = require('child_process');\nconst os = require('os');\nconst path = require('path');\n\n// 1. Universal Paths\nconst userHome = os.homedir(); \nconst projectDir = path.join(userHome, \"VideoEditorProject\");\nconst scriptPath = path.join(projectDir, \"auto_subtitle.py\");\n\n// THE ULTIMATE FIX: \n// We point directly to your Python 3.13 executable to avoid version collisions.\nconst pythonPath = \"\\\"C:\\\\Program Files\\\\Python313\\\\python.exe\\\"\"; \n\n// 2. Return a Promise to keep n8n waiting until Python finishes\nreturn new Promise((resolve, reject) => {\n  \n  // COMMAND: Run Python\n  // Note: We removed 'env: process.env' because n8n's sandbox blocks access to the 'process' object.\n  // The Python script itself now handles the DLL paths internally!\n  exec(`${pythonPath} \"${scriptPath}\"`, { \n    encoding: 'utf8', \n    cwd: projectDir\n  }, (error, stdout, stderr) => {\n    \n    if (error) {\n      // If Python crashes, show the error log\n      const errorLog = stdout ? stdout.toString() : (stderr ? stderr.toString() : error.message);\n      reject(new Error(`Auto Subtitles Failed: \\n${errorLog}`));\n    } else {\n      // If Success, return the log to n8n\n      resolve([\n        {\n          json: {\n            status: \"Auto Subtitles Generated Successfully!\",\n            log: stdout\n          }\n        }\n      ]);\n    }\n\n  });\n});*/\n\nconst { exec } = require('child_process');\nconst os = require('os');\nconst path = require('path');\n\nconst userHome = os.homedir(); \nconst projectDir = path.join(userHome, \"VideoEditorProject\");\nconst scriptPath = path.join(projectDir, \"auto_subtitle.py\");\nconst pythonPath = \"\\\"C:\\\\Program Files\\\\Python313\\\\python.exe\\\"\"; \n\nreturn new Promise((resolve) => { // Removed 'reject' from here\n  exec(`${pythonPath} \"${scriptPath}\"`, { \n    encoding: 'utf8', \n    cwd: projectDir\n  }, (error, stdout, stderr) => {\n    \n    if (error) {\n      // Instead of crashing n8n, we return a JSON with the error details\n      const errorLog = stdout ? stdout.toString() : (stderr ? stderr.toString() : error.message);\n      \n      resolve([{\n        json: {\n          success: false,\n          status: \"error\",\n          error_message: \"Auto Subtitles Failed\",\n          details: errorLog\n        }\n      }]);\n    } else {\n      resolve([{\n        json: {\n          success: true,\n          status: \"success\",\n          message: \"Auto Subtitles Generated Successfully!\",\n          log: stdout\n        }\n      }]);\n    }\n  });\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3088,
+        -2464
+      ],
+      "id": "996641c2-641e-4d22-819b-a040e117f852",
+      "name": "Code in JavaScript6"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=C:\\Users\\Xavier\\VideoEditorProject\\Output\\raw.mp4",
+        "dataPropertyName": "video",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        1968,
+        -2128
+      ],
+      "id": "7e526619-8483-4f9a-b288-014b25abd013",
+      "name": "Read/Write Files from Disk3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ab89b926-3727-479d-bdb0-142f374eaeee",
+              "name": "body.prompt",
+              "value": "={{ $json.body.prompt }}",
+              "type": "string"
+            },
+            {
+              "id": "ca81709a-2702-41a4-8583-04c77c6da673",
+              "name": "body.mode",
+              "value": "={{ $json.body.mode }}",
+              "type": "string"
+            },
+            {
+              "id": "8b044bc9-06da-4582-bdcc-db79eccffbe0",
+              "name": "body.userId",
+              "value": "={{ $json.body.userId }}",
+              "type": "string"
+            },
+            {
+              "id": "7cee6524-b313-4338-babf-62a3b299bc1b",
+              "name": "body.projectId",
+              "value": "={{ $json.body.projectId }}",
+              "type": "string"
+            },
+            {
+              "id": "3aa5c6b0-4343-427e-ace0-958741801ba1",
+              "name": "body.projectName",
+              "value": "={{ $json.body.projectName }}",
+              "type": "string"
+            },
+            {
+              "id": "1aed8087-1fa2-4ea3-80da-c4d000666354",
+              "name": "data",
+              "value": "video",
+              "type": "binary"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2112,
+        -2128
+      ],
+      "id": "51e1855a-2a7c-4991-bb9e-2d9cbb4bc0d6",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "content": "things to remove:\nsuperbase keys from 1st hhtps\n",
+        "height": 80
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2224,
+        -2528
+      ],
+      "typeVersion": 1,
+      "id": "e647c8d9-603d-4890-88f4-f303986082dc",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "tableId": "iterations",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "project_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.body.projectId }}"
+            },
+            {
+              "fieldId": "prompt",
+              "fieldValue": "={{ $('Edit Fields').item.json.body.prompt }}"
+            },
+            {
+              "fieldId": "input_video_url",
+              "fieldValue": "=https://giciwxijnptancfehwhb.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            },
+            {
+              "fieldId": "role",
+              "fieldValue": "user"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "processing"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2544,
+        -2192
+      ],
+      "id": "2d6b8980-ce66-40ac-999d-12fb98745714",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "FetmEzmpPiNvvq74",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fileSelector": "C:\\Users\\Xavier\\VideoEditorProject\\Final\\Final_Render.mp4",
+        "options": {
+          "fileName": "video"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        3008,
+        -2272
+      ],
+      "id": "670c634c-16b3-44db-a8fc-d872c1675a41",
+      "name": "Read/Write Files from Disk4"
+    },
+    {
+      "parameters": {
+        "tableId": "iterations",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "output_video_url",
+              "fieldValue": "=https://giciwxijnptancfehwhb.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            },
+            {
+              "fieldId": "project_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.body.projectId }}"
+            },
+            {
+              "fieldId": "prompt",
+              "fieldValue": "={{ $('Edit Fields').item.json.body.prompt }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "completed"
+            },
+            {
+              "fieldId": "role",
+              "fieldValue": "assistant"
+            },
+            {
+              "fieldId": "input_video_url",
+              "fieldValue": "={{ $('Get many rows').item.json.input_video_url }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3440,
+        -2336
+      ],
+      "id": "8ff6f9d8-b780-4c04-9070-f8ea269ca0b7",
+      "name": "Create a row1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "FetmEzmpPiNvvq74",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "iterations",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "project_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.body.projectId }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        -2288
+      ],
+      "id": "931c8167-a970-4816-a8e7-fa3a40354ffc",
+      "name": "Get many rows",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "FetmEzmpPiNvvq74",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "66614a56-7eba-4917-a938-ce1a0001a8b0",
+              "leftValue": "={{ $('Get many rows').item.json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2112,
+        -2288
+      ],
+      "id": "897d5782-f65f-4f4d-a1fe-efef743671a9",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "tableId": "iterations",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "output_video_url",
+              "fieldValue": "=https://giciwxijnptancfehwhb.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            },
+            {
+              "fieldId": "project_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.body.projectId }}"
+            },
+            {
+              "fieldId": "prompt",
+              "fieldValue": "={{ $('Edit Fields').item.json.body.prompt }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "completed"
+            },
+            {
+              "fieldId": "role",
+              "fieldValue": "assistant"
+            },
+            {
+              "fieldId": "input_video_url",
+              "fieldValue": "={{ $('Get many rows').item.json.input_video_url }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3440,
+        -2176
+      ],
+      "id": "11b877d5-aaed-4fa5-802e-bd3f19bd0f71",
+      "name": "Create a row2",
+      "credentials": {
+        "supabaseApi": {
+          "id": "FetmEzmpPiNvvq74",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"status\": \"error\",\n  \"message\": \"PromtFlow Engine Crash\",\n  \"error_summary\": \"Video processed unsuccessfully\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3008,
+        -2112
+      ],
+      "id": "b0554380-99bd-456d-8bff-4d5bf998c741",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"status\": \"success\",\n  \"message\": \"Video updated in database\",\n  \"error_summary\": \"Video processed successfully\",\n  \"videoUrl\": \"{{ $json.output_video_url }}\",\n  \"iteration_id\": \"{{ $json.id }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3584,
+        -2272
+      ],
+      "id": "e91094db-b160-42bf-9c32-d53531fda4dc",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ee532db4-9940-4444-8881-2a842b8f238a",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2848,
+        -2224
+      ],
+      "id": "8a69310d-65a2-4579-92b5-9c0d55b025b8",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://ijvvydbswryfjrkivjzs.supabase.co/storage/v1/object/prompt_back/{{ $('Edit Fields').item.json.body.projectId }}/input.mp4",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "video/mp4"
+            },
+            {
+              "name": "Authorization"
+            },
+            {
+              "name": "apikey"
+            },
+            {
+              "name": "x-upsert",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2416,
+        -2192
+      ],
+      "id": "180f56de-c349-434c-9c71-1c5b6a4dabf5",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-vfx",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1824,
+        -2128
+      ],
+      "id": "236b2984-6861-408c-9e2a-2ee68b8413f1",
+      "name": "Webhook",
+      "webhookId": "c1f4eddf-2433-4fdd-8ef8-9ddb0f1cbc00"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2272,
+        -2192
+      ],
+      "id": "9b5686a5-1271-4b5a-a7a4-5abdbcc3653e",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://ijvvydbswryfjrkivjzs.supabase.co/storage/v1/object/prompt_back/{{ $('Edit Fields').item.json.body.projectId }}/input.mp4",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "video/mp4"
+            },
+            {
+              "name": "Authorization"
+            },
+            {
+              "name": "apikey"
+            },
+            {
+              "name": "x-upsert",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3152,
+        -2272
+      ],
+      "id": "69376764-74c8-4ba5-a538-64f3b05eeee0",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "66614a56-7eba-4917-a938-ce1a0001a8b0",
+              "leftValue": "={{ $('Get many rows').item.json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3296,
+        -2272
+      ],
+      "id": "945d359a-8dbe-4481-88c0-cc3b85377548",
+      "name": "If1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File1": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model2": {
+      "main": [
+        [
+          {
+            "node": "Convert to File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk3": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript6": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk4": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Create a row1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a row2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "310d0151-5c73-4377-9796-8409eb564f6d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0561070a28d6405b96b375aa7d6bc72460d04eb02d6b2d5fbc900d7fa6e47541"
+  },
+  "id": "DyfJU-8HDv3v8f-6vNi4h",
+  "tags": []
+}

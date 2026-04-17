@@ -1,0 +1,7 @@
+moviepy
+replicate
+requests
+openai-whisper
+flask
+Pillow
+numpy

@@ -1,0 +1,1 @@
+INSERT INTO "public"."profiles" ("id", "email", "full_name", "avatar_url", "updated_at") VALUES ('6950cbf0-0c30-45d2-ad4e-ce45439c3c66', 'sanaica.dsouza@gmail.com', 'Jane Doe', null, '2026-04-05 16:24:50.908315+00');

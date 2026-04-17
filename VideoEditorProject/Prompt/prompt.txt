@@ -1,0 +1,10 @@
+{
+  "action": "vfx",
+  "prompt": "Red rose petals gently falling. Isolated on solid pure black background, Static camera, No shadows.",
+  "width": 0,
+  "height": 0,
+  "scale": 1,
+  "start_time": 0,
+  "end_time": 0,
+  "position": "center"
+}

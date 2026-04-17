@@ -1,0 +1,11 @@
+[
+  {
+    "function": "trim",
+    "params": {
+      "input": "raw.mp4",
+      "start": 0,
+      "end": 1,
+      "output": "final_render.mp4"
+    }
+  }
+]
